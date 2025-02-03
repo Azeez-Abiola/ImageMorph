@@ -55,12 +55,33 @@ export default function ImageConverter({ isDarkMode }: ImageConverterProps) {
     reader.readAsDataURL(file);
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      handleImageSelection(file);
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append("image", file);
+
+  try {
+    const response = await fetch("https://imagemorph.onrender.com/convert", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await response.json();
+    console.log("Converted Images:", result.urls);
+    if (result.images) {
+      setConvertedImages(result.images.map((img: { url: string; size: number }) => ({
+        format: img.url.split(".").pop(),
+        url: `http://localhost:8080${img.url}`,
+        size: formatBytes(img.size), 
+      })));
     }
-  };
+  } catch (error) {
+    console.error("Upload failed", error);
+  }
+};
+
 
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -74,7 +95,7 @@ export default function ImageConverter({ isDarkMode }: ImageConverterProps) {
     if (!selectedImage) return;
     setIsConverting(true);
 
-    const formats: ImageFormat[] = ['png', 'jpeg', 'webp', 'svg'];
+    const formats: ImageFormat[] = ['png', 'jpeg', 'webp', 'ico', 'webp'];
     const converted: ConvertedImage[] = [];
 
     for (const format of formats) {
@@ -117,7 +138,7 @@ export default function ImageConverter({ isDarkMode }: ImageConverterProps) {
   }, []);
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+    <div onContextMenu={(e) => e.preventDefault()} className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'} select-none`}>
       <SettingsMenu
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
@@ -280,7 +301,7 @@ export default function ImageConverter({ isDarkMode }: ImageConverterProps) {
                     <a
                       href={img.url}
                       download={`converted.${img.format}`}
-                      className="flex items-center space-x-1 text-blue-500 hover:text-blue-600"
+                      className="cursor-pointer flex items-center space-x-1 text-blue-500 hover:text-blue-600"
                     >
                       <Download className="w-4 h-4" />
                       <span>Download</span>
@@ -294,7 +315,7 @@ export default function ImageConverter({ isDarkMode }: ImageConverterProps) {
       </main>
 
       <div className="mt-8 text-center text-sm text-gray-500">
-        <p>Built with ❤️ by Abiola</p>
+        <p>Built with ❤️ by Abiola & Samuel Tuoyo</p>
       </div>
     </div>
   );

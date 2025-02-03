@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, Download, Trash2, AlertCircle } from 'lucide-react';
 import axios from 'axios';
-
-const REMOVE_BG_API_URL = 'https://api.remove.bg/v1.0/removebg';
-
+import FormData from 'form-data'; 
 interface BackgroundRemoverProps {
   isDarkMode: boolean;
 }
@@ -15,7 +13,6 @@ export default function BackgroundRemover({ isDarkMode }: BackgroundRemoverProps
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string>('');
-  const [apiKey, setApiKey] = useState<string>('');
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -60,42 +57,32 @@ export default function BackgroundRemover({ isDarkMode }: BackgroundRemoverProps
     }
   };
 
-  const removeBackground = async () => {
-    if (!selectedImage || !apiKey) {
-      setError('Please provide both an image and an API key');
-      return;
-    }
-    
-    setIsProcessing(true);
-    setError('');
+const removeBackground = async () => {
+  if (!selectedImage) {
+    setError('Please provide an image');
+    return;
+  }
 
-    const formData = new FormData();
-    formData.append('image_file', selectedImage);
-    formData.append('size', 'auto');
+  setIsProcessing(true);
+  setError('');
 
-    try {
-      const response = await axios.post(REMOVE_BG_API_URL, formData, {
-        headers: {
-          'X-Api-Key': apiKey,
-        },
-        responseType: 'arraybuffer',
-      });
+  const formData = new FormData();
+  formData.append('image_file', selectedImage);
 
-      const base64Image = Buffer.from(response.data, 'binary').toString('base64');
-      setProcessedImage(`data:image/png;base64,${base64Image}`);
-    } catch (error: any) {
-      console.error('Error removing background:', error);
-      if (error.response?.status === 402) {
-        setError('API key usage limit exceeded. Please check your remove.bg account.');
-      } else if (error.response?.status === 401) {
-        setError('Invalid API key. Please check your remove.bg API key.');
-      } else {
-        setError('Failed to remove background. Please try again.');
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  try {
+    const response = await axios.post('https://api-image-morph.vercel.app/remove-bg', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+   console.log(response.data.processedImage)
+    setProcessedImage(response.data.processedImage);
+  } catch (error: any) {
+    console.error('Error removing background:', error);
+    setError(error.response?.data?.error || 'Failed to remove background. Please try again.');
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
 
   const clearAll = () => {
     setSelectedImage(null);
@@ -105,27 +92,13 @@ export default function BackgroundRemover({ isDarkMode }: BackgroundRemoverProps
   };
 
   return (
-    <div className={`max-w-4xl mx-auto ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+    <div onContextMenu={(e) => e.preventDefault()} className={`max-w-4xl mx-auto ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'} select-none`}>
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2 text-red-600">
           <AlertCircle className="w-5 h-5" />
           <span>{error}</span>
         </div>
       )}
-
-      <div className="mb-6">
-        <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-2">
-          remove.bg API Key
-        </label>
-        <input
-          type="password"
-          id="apiKey"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Enter your remove.bg API key"
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-      </div>
 
       {!selectedImage && (
         <div
@@ -217,9 +190,9 @@ export default function BackgroundRemover({ isDarkMode }: BackgroundRemoverProps
       {selectedImage && !processedImage && (
         <button
           onClick={removeBackground}
-          disabled={isProcessing || !apiKey}
+          disabled={isProcessing}
           className={`mt-8 w-full py-3 px-4 rounded-lg bg-blue-500 text-white font-medium
-            ${(isProcessing || !apiKey) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'}`}
+            ${(isProcessing) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'}`}
         >
           {isProcessing ? (
             <div className="flex items-center justify-center space-x-2">
@@ -233,7 +206,7 @@ export default function BackgroundRemover({ isDarkMode }: BackgroundRemoverProps
       )}
 
       <div className="mt-8 text-center text-sm text-gray-500">
-        <p>Built with ❤️ by Abiola</p>
+        <p>Built with ❤️ by Abiola & Samuel Tuoyo</p>
       </div>
     </div>
   );
