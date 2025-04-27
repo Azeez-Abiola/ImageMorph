@@ -89,7 +89,7 @@ func removeBgHandler(w http.ResponseWriter, r *http.Request) {
 
 
 	go func() {
-		time.Sleep(24 * time.Hour)
+		time.Sleep(23 * time.Hour)
 		os.Remove(outputPath)
 	}()
 
