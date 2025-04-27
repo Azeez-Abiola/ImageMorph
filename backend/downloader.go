@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"log"
 	"net/http"
-	"os"
-	"strings"
+	"github.com/joho/godotenv"
 )
 
 type VideoRequest struct {
@@ -33,7 +33,18 @@ type VideoResponse struct {
 	Error bool `json:"error"`
 }
 
-func fetchVideoMetaData(videoURL, apiKey string) (*VideoResponse, error) {
+
+func fetchVideoMetaData(videoURL string) (*VideoResponse, error) {
+ 		err := godotenv.Load()
+		if err != nil {
+			log.Println("No .env file found.")
+		}
+
+ apiKey := os.Getenv("RAPIDAPI_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("RAPIDAPI_KEY not set")
+	}
+
 	payload := VideoRequest{URL: videoURL}
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
@@ -49,7 +60,7 @@ func fetchVideoMetaData(videoURL, apiKey string) (*VideoResponse, error) {
 		return nil, err
 	}
 
-	req.Header.Add("x-rapidapi-key", apiKey)
+	req.Header.Add("x-rapidapi-key", apiKey) // 🔒 Backend-only key
 	req.Header.Add("x-rapidapi-host", "social-download-all-in-one.p.rapidapi.com")
 	req.Header.Add("Content-Type", "application/json")
 
@@ -69,10 +80,32 @@ func fetchVideoMetaData(videoURL, apiKey string) (*VideoResponse, error) {
 	return &result, nil
 }
 
+func fetchVideoHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req VideoRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	videoData, err := fetchVideoMetaData(req.URL)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(videoData)
+}
+
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.Query().Get("url")
 	if url == "" {
-		http.Error(w, "URL parameter is required", http.StatusBadRequest)
+		http.Error(w, "URL parameter required", http.StatusBadRequest)
 		return
 	}
 
@@ -90,11 +123,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileName))
 	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
-	w.Header().Set("Content-Length", resp.Header.Get("Content-Length"))
-
-	_, err = io.Copy(w, resp.Body)
-	if err != nil {
-		log.Printf("Error streaming video: %v", err)
-	}
+	io.Copy(w, resp.Body) 
 }
+
 

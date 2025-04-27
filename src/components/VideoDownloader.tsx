@@ -12,57 +12,47 @@ const SUPPORTED_PLATFORMS = [
 
 const VideoDownloader = ({ isDarkMode }) => {
   const [url, setUrl] = useState('');
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [videoData, setVideoData] = useState(null);
   const [selectedUrl, setSelectedUrl] = useState('');
 
-  const handleFetch = async () => {
-    setIsDownloading(true);
-    setError('');
-    setVideoData(null);
+ const handleFetch = async () => {
+  setIsLoading(true);
+  setError('');
 
-    try {
-      const response = await fetch(`https://imagemorph.onrender.com/download?url=${url.trim()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch video data.');
-      }
+  try {
+    const response = await fetch('http://localhost:8080/api/metadata', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url.trim() }) 
+    });
 
-      const data = await response.json();
-      setVideoData(data);
-      console.log(data);
+    if (!response.ok) throw new Error(await response.text());
+    const data = await response.json();
+    setVideoData(data);
+    setSelectedUrl(data.medias?.[0]?.url || '');
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-      if (data.links && data.links.length > 0) {
-        setSelectedUrl(data.links[0].link);
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Something went wrong. Please check the URL or try again.');
-    } finally {
-      setIsDownloading(false);
-    }
-  };
+const downloadVideo = () => {
+  if (!selectedUrl) return;
+  const safeTitle = videoData.Title?.replace(/[^\w]/g, '_') || 'video';
+  window.open(
+    `http://localhost:8080/api/download?url=${encodeURIComponent(selectedUrl)}&filename=${safeTitle}.mp4`
+  )
+}
 
-  const downloadVideo = async (link) => {
-    try {
-      const response = await fetch(link);
-      const blob = await response.blob();
-      const newLink = URL.createObjectURL(blob);
-      const downloadLink = document.createElement('a');
-      downloadLink.download = 'video.mp4'; 
-      downloadLink.href = newLink;
-      downloadLink.click();
-      URL.revokeObjectURL(newLink);
-    } catch (error) {
-      console.error('Error downloading video:', error);
-    }
-  };
-
+ 
   const inputStyles = isDarkMode
     ? 'bg-gray-900 text-white border-gray-700'
     : 'bg-white text-gray-900 border-gray-300';
 
-  const buttonStyles = isDownloading || !url
+  const buttonStyles = isLoading || !url
     ? 'opacity-50 cursor-not-allowed'
     : 'hover:bg-blue-600';
 
@@ -103,10 +93,10 @@ const VideoDownloader = ({ isDarkMode }) => {
 
         <button
           onClick={handleFetch}
-          disabled={isDownloading || !url}
+          disabled={isLoading || !url}
           className={`w-full py-3 rounded-lg bg-blue-500 text-white font-medium ${buttonStyles}`}
         >
-          {isDownloading ? 'Fetching Video Info...' : 'Get Video'}
+          {isLoading ? 'Fetching Video Info...' : 'Get Video'}
         </button>
 
         {videoData && (
@@ -119,13 +109,13 @@ const VideoDownloader = ({ isDarkMode }) => {
               <strong>Title:</strong> {videoData.title}
             </p>
             <p className={`${isDarkMode ? 'text-white' : 'text-gray-700'} mb-2`}>
-              <strong>Category:</strong> {videoData.category}
+              <strong>Social Media Source:</strong> {videoData.source}
             </p>
             <p className={`${isDarkMode ? 'text-white' : 'text-gray-700'} mb-2`}>
               <strong>Duration:</strong> {formatDuration(videoData.duration)}
             </p>
 
-            {videoData.links && videoData.links.length > 0 && (
+            {videoData.medias && videoData.medias.length > 0 && (
               <div className="mt-4">
                 <label htmlFor="qualitySelect" className="block mb-2">
                   Select Quality
@@ -135,8 +125,8 @@ const VideoDownloader = ({ isDarkMode }) => {
                   onChange={(e) => setSelectedUrl(e.target.value)}
                   className="w-full p-2 bg-black text-white rounded-md border"
                 >
-                  {videoData.links.map((media, index) => (
-                    <option key={index} value={media.link}>
+                  {videoData.medias.map((media, index) => (
+                    <option key={index} value={media.url}>
                       Quality {media.quality}
                     </option>
                   ))}
@@ -146,7 +136,7 @@ const VideoDownloader = ({ isDarkMode }) => {
 
             <button
               type="button"
-              onClick={() => downloadVideo(selectedUrl)}
+              onClick={() => downloadVideo()}
               style={{
                 pointerEvents: !selectedUrl ? 'none' : 'auto',
                 opacity: !selectedUrl ? 0.5 : 1,
@@ -159,7 +149,7 @@ const VideoDownloader = ({ isDarkMode }) => {
         )}
       </div>
       <div className="mt-8 text-center text-sm text-gray-500">
-        <p>Built with ❤️ by Abiola & Samuel Tuoyo</p>
+        <p>Built with ❤️ by Abiola & Samuel</p>
       </div>
     </div>
   );
