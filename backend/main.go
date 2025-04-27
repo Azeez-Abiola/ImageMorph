@@ -9,7 +9,7 @@ import (
 
 func main() {
 	corsOptions := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:5173"},
+		AllowedOrigins: []string{"https://imagemorph-abiola.netlify.app", "http://localhost:5173"},
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders: []string{"Content-Type", "Authorization"},
 	})

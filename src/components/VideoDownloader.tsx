@@ -22,7 +22,7 @@ const VideoDownloader = ({ isDarkMode }) => {
   setError('');
 
   try {
-    const response = await fetch('http://localhost:8080/api/metadata', {
+    const response = await fetch('https://imagemorph.onrender.com/api/metadata', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: url.trim() }) 
@@ -43,7 +43,7 @@ const downloadVideo = () => {
   if (!selectedUrl) return;
   const safeTitle = videoData.Title?.replace(/[^\w]/g, '_') || 'video';
   window.open(
-    `http://localhost:8080/api/download?url=${encodeURIComponent(selectedUrl)}&filename=${safeTitle}.mp4`
+    `https://imagemorph.onrender.com/api/download?url=${encodeURIComponent(selectedUrl)}&filename=${safeTitle}.mp4`
   )
 }
 

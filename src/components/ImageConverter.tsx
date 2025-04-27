@@ -63,7 +63,7 @@ export default function ImageConverter({ isDarkMode }: ImageConverterProps) {
   formData.append("image", file);
 
   try {
-    const response = await fetch("http://localhost:8080/api/convert", {
+    const response = await fetch("https://imagemorph.onrender.com/api/convert", {
       method: "POST",
       body: formData,
     });
@@ -72,7 +72,7 @@ export default function ImageConverter({ isDarkMode }: ImageConverterProps) {
     if (result.images) {
       setConvertedImages(result.images.map((img: { url: string; size: number }) => ({
         format: img.url.split(".").pop(),
-        url: `http://localhost:8080${img.url}`,
+        url: `https://imagemorph.onrender.com${img.url}`,
         size: formatBytes(img.size), 
       })));
     }

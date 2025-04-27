@@ -88,11 +88,11 @@ const removeBackground = async () => {
   formData.append('image', selectedImage);
 
   try {
-    const response = await axios.post('http://localhost:8080/api/removebg', formData, {
+    const response = await axios.post('https://imagemorph.onrender.com/api/removebg', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
    console.log(response.data)
-    setProcessedImage(`http://localhost:8080${response.data.image.url}`);
+    setProcessedImage(`https://imagemorph.onrender.com${response.data.image.url}`);
   } catch (error: any) {
     console.error('Error removing background:', error);
     setError(error.response?.data?.error || 'Failed to remove background. Please try again.');
