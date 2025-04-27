@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"image"
 	"image/jpeg"
+	"time"
 	"image/png"
 	"net/http"
 	"os"
@@ -86,6 +87,11 @@ func convertHandler(w http.ResponseWriter, r *http.Request) {
 		Images:  convertedImages,
 	}
 
+   go func() {
+     time.Sleep(24 * time.Hour)
+     os.RemoveAll("uploads/")
+     os.Mkdir("uploads/", 0755)
+    }()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
