@@ -17,6 +17,7 @@ func main() {
 	http.HandleFunc("/api/convert", convertHandler)
 	http.HandleFunc("/api/metadata", fetchVideoHandler)
 	http.HandleFunc("/api/download", downloadHandler)
+	http.HandleFunc("/api/removebg", removeBgHandler)
 	
 	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads")))) 
 
