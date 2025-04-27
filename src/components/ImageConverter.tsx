@@ -81,6 +81,24 @@ export default function ImageConverter({ isDarkMode }: ImageConverterProps) {
   }
 };
 
+const handleDownload = async (url: string, filename: string) => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    console.error('Download failed:', error);
+  }
+};
 
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -297,14 +315,13 @@ export default function ImageConverter({ isDarkMode }: ImageConverterProps) {
                       <span className="font-medium uppercase">{img.format}</span>
                       <span className="text-sm text-gray-500 ml-2">{img.size}</span>
                     </div>
-                    <a
-                      href={img.url}
-                      download={`converted.${img.format}`}
+                    <button 
+                      onClick={() => handleDownload(img.url, `converted.${img.format}`)}
                       className="cursor-pointer flex items-center space-x-1 text-blue-500 hover:text-blue-600"
                     >
                       <Download className="w-4 h-4" />
                       <span>Download</span>
-                    </a>
+                    </button>
                   </div>
                 </div>
               ))}

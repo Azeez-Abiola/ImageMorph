@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"log"
+	"github.com/joho/godotenv"
 )
 
 type RemovedBGImage struct {
@@ -22,7 +24,12 @@ func removeBgHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
+ 
+  	err := godotenv.Load()
+		if err != nil {
+			log.Println("No .env file found.")
+		}
+		
 	apiKey := os.Getenv("REMOVEBG_API_KEY")
 	if apiKey == "" {
 		http.Error(w, "RemoveBG API key not configured", http.StatusInternalServerError)
