@@ -1,126 +1,129 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"log"
 	"net/http"
-	"os/exec"
-	"sync"
+	"github.com/joho/godotenv"
 )
 
-type VideoMetadata struct {
-	Title     string      `json:"title"`
-	Thumbnail string      `json:"thumbnail"`
-	Duration  int         `json:"duration"`
-	Category  string      `json:"category"`
-	Links     []VideoLink `json:"links"`
+type VideoRequest struct {
+	URL string `json:"url"`
 }
 
-type VideoLink struct {
-	Link    string `json:"link"`
-	Quality string `json:"quality"`
+type VideoResponse struct {
+	URL string `json:"url"`
+	Source string `json:"source"`
+	ID string `json:"id"`
+	Author string `json:"author"`
+	Title string `json:"title"`
+	Thumbnail string `json:"thumbnail"`
+	Duration int  `json:"duration"`
+	Medias []struct {
+		URL string `json:"url"`
+		Quality string `json:"quality"`
+		Width int `json:"width"`
+		Height int `json:"height"`
+		Ext string `json:"ext"`
+	} `json:"medias"`
+	Error bool `json:"error"`
 }
 
-var cache = make(map[string]VideoMetadata)
-var mu sync.RWMutex
 
-func downloadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid Request Method", http.StatusMethodNotAllowed)
-		return
+func fetchVideoMetaData(videoURL string) (*VideoResponse, error) {
+ 		err := godotenv.Load()
+		if err != nil {
+			log.Println("No .env file found.")
+		}
+
+ apiKey := os.Getenv("RAPIDAPI_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("RAPIDAPI_KEY not set")
 	}
 
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	videoURL := r.URL.Query().Get("url")
-	if videoURL == "" {
-		http.Error(w, "Missing video URL", http.StatusBadRequest)
-		return
-	}
-
-	mu.RLock()
-	cachedData, found := cache[videoURL]
-	mu.RUnlock()
-	if found {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(cachedData)
-		return
-	}
-
-	videoData, err := fetchVideoData(videoURL)
+	payload := VideoRequest{URL: videoURL}
+	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to fetch metadata: %s", err.Error()), http.StatusInternalServerError)
+		return nil, err
+	}
+
+	req, err := http.NewRequest(
+		"POST",
+		"https://social-download-all-in-one.p.rapidapi.com/v1/social/autolink",
+		bytes.NewBuffer(jsonPayload),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("x-rapidapi-key", apiKey) // 🔒 Backend-only key
+	req.Header.Add("x-rapidapi-host", "social-download-all-in-one.p.rapidapi.com")
+	req.Header.Add("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var result VideoResponse
+	if json.Unmarshal(body, &result) != nil || result.Error {
+		return &result, nil
+	}
+
+	return &result, nil
+}
+
+func fetchVideoHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	mu.Lock()
-	cache[videoURL] = videoData
-	mu.Unlock()
+	var req VideoRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	videoData, err := fetchVideoMetaData(req.URL)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(videoData)
 }
 
-func fetchVideoData(videoURL string) (VideoMetadata, error) {
-	cmd := exec.Command("yt-dlp", "-j", "--no-playlist", videoURL)
-	output, err := cmd.Output()
+func downloadHandler(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.Query().Get("url")
+	if url == "" {
+		http.Error(w, "URL parameter required", http.StatusBadRequest)
+		return
+	}
+
+	fileName := r.URL.Query().Get("filename")
+	if fileName == "" {
+		fileName = "video.mp4"
+	}
+
+	resp, err := http.Get(url)
 	if err != nil {
-		return VideoMetadata{}, fmt.Errorf("failed to fetch metadata: %s", err.Error())
+		http.Error(w, "Failed to fetch video", http.StatusInternalServerError)
+		return
 	}
+	defer resp.Body.Close()
 
-	var metadata map[string]interface{}
-	if err := json.Unmarshal(output, &metadata); err != nil {
-		return VideoMetadata{}, fmt.Errorf("failed to parse metadata: %s", err.Error())
-	}
-
-	videoData := VideoMetadata{}
-	if title, ok := metadata["title"].(string); ok {
-		videoData.Title = title
-	} else {
-		videoData.Title = "Unknown Title"
-	}
-
-	if thumbnail, ok := metadata["thumbnail"].(string); ok {
-		videoData.Thumbnail = thumbnail
-	} else {
-		videoData.Thumbnail = "No Thumbnail"
-	}
-
-	if duration, ok := metadata["duration"].(float64); ok {
-		videoData.Duration = int(duration)
-	} else {
-		videoData.Duration = 0
-	}
-
-	if categories, ok := metadata["categories"].([]interface{}); ok && len(categories) > 0 {
-		if category, ok := categories[0].(string); ok {
-			videoData.Category = category
-		} else {
-			videoData.Category = "Uncategorized"
-		}
-	} else {
-		videoData.Category = "Uncategorized"
-	}
-
-	var links []VideoLink
-	if formats, ok := metadata["formats"].([]interface{}); ok {
-		for _, format := range formats {
-			if formatMap, ok := format.(map[string]interface{}); ok {
-				if url, ok := formatMap["url"].(string); ok {
-					if quality, ok := formatMap["format"].(string); ok {
-						links = append(links, VideoLink{
-							Link:    url,
-							Quality: quality,
-						})
-					}
-				}
-			}
-		}
-	}
-	videoData.Links = links
-
-	return videoData, nil
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileName))
+	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+	io.Copy(w, resp.Body) 
 }
+
 

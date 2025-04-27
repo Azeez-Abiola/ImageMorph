@@ -36,7 +36,7 @@ export default function BackgroundRemover({ isDarkMode }: BackgroundRemoverProps
   };
 
   const handleImageSelection = (file: File) => {
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+    if (file.size > 10 * 1024 * 1024) { 
       setError('Image size must be less than 10MB');
       return;
     }
@@ -56,6 +56,24 @@ export default function BackgroundRemover({ isDarkMode }: BackgroundRemoverProps
       handleImageSelection(file);
     }
   };
+    const handleDownload = async (url: string, filename: string) => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    console.error('Download failed:', error);
+  }
+};
 
 const removeBackground = async () => {
   if (!selectedImage) {
@@ -67,14 +85,14 @@ const removeBackground = async () => {
   setError('');
 
   const formData = new FormData();
-  formData.append('image_file', selectedImage);
+  formData.append('image', selectedImage);
 
   try {
-    const response = await axios.post('https://api-image-morph.vercel.app/remove-bg', formData, {
+    const response = await axios.post('https://imagemorph.onrender.com/api/removebg', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-   console.log(response.data.processedImage)
-    setProcessedImage(response.data.processedImage);
+   console.log(response.data)
+    setProcessedImage(`https://imagemorph.onrender.com${response.data.image.url}`);
   } catch (error: any) {
     console.error('Error removing background:', error);
     setError(error.response?.data?.error || 'Failed to remove background. Please try again.');
@@ -169,8 +187,7 @@ const removeBackground = async () => {
                     className="w-full h-full object-contain rounded-lg mb-4"
                   />
                   <a
-                    href={processedImage}
-                    download="removed-background.png"
+                   onClick={() => handleDownload(processedImage, "imagemorph-removedbg.png")}
                     className="flex items-center justify-center space-x-2 w-full py-3 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 mt-4"
                   >
                     <Download className="w-5 h-5" />

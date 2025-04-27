@@ -9,13 +9,16 @@ import (
 
 func main() {
 	corsOptions := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:5173"},
+		AllowedOrigins: []string{"https://imagemorph-abiola.netlify.app", "http://localhost:5173"},
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders: []string{"Content-Type", "Authorization"},
 	})
 
-	http.HandleFunc("/convert", convertHandler)
-	http.HandleFunc("/download", downloadHandler)
+	http.HandleFunc("/api/convert", convertHandler)
+	http.HandleFunc("/api/metadata", fetchVideoHandler)
+	http.HandleFunc("/api/download", downloadHandler)
+	http.HandleFunc("/api/removebg", removeBgHandler)
+	
 	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads")))) 
 
 	handler := corsOptions.Handler(http.DefaultServeMux)
