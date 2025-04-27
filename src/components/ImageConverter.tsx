@@ -69,11 +69,10 @@ export default function ImageConverter({ isDarkMode }: ImageConverterProps) {
     });
 
     const result = await response.json();
-    console.log("Converted Images:", result.urls);
     if (result.images) {
       setConvertedImages(result.images.map((img: { url: string; size: number }) => ({
         format: img.url.split(".").pop(),
-        url: `http://localhost:8080${img.url}`,
+        url: `https://imagemorph.onrender.com${img.url}`,
         size: formatBytes(img.size), 
       })));
     }

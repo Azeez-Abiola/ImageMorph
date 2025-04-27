@@ -15,7 +15,7 @@ func main() {
 	})
 
 	http.HandleFunc("/convert", convertHandler)
-	http.HandleFunc("/download", downloadHandler)
+  http.HandleFunc("/download", downloadHandler)
 	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads")))) 
 
 	handler := corsOptions.Handler(http.DefaultServeMux)
